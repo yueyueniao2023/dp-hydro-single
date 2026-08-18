@@ -15,9 +15,9 @@ import java.util.ArrayList;
 import java.util.List;
 
 public class ChartGenerator {
-    private static final String ORIGIN_EXCEL_PATH = "C:\\1.保研人的大四\\入门案例（两周-截止11月16号）\\水位库容关系&尾水位流量关系&来水过程&实际水位过程.xlsx";
-    private static final String OPTIMAL_EXCEL_PATH = "水电站最优调度结果.xlsx";
-    private static final String CHART_OUTPUT_PATH = "调度结果对比图/";
+    private static final String ORIGIN_EXCEL_PATH = "data/hydro_basic_data.xlsx";
+    private static final String OPTIMAL_EXCEL_PATH = "results/optimal_dispatch_result.xlsx";
+    private static final String CHART_OUTPUT_PATH = "figures/";
 
     private ExcelReader excelReader;
     private PowerCalculator powerCalculator;
@@ -266,7 +266,7 @@ public class ChartGenerator {
 
         // 7. 保存图片
         ChartUtils.saveChartAsPNG(
-                new java.io.File(CHART_OUTPUT_PATH + "水位过程对比图.png"),
+                new java.io.File(CHART_OUTPUT_PATH + "water_level_comparison.png"),
                 chart, 800, 500
         );
     }
@@ -320,7 +320,7 @@ public class ChartGenerator {
         yAxis.setAutoRange(false);
 
         ChartUtils.saveChartAsPNG(
-                new java.io.File(CHART_OUTPUT_PATH + "出流过程对比图.png"),
+                new java.io.File(CHART_OUTPUT_PATH + "outflow_comparison.png"),
                 chart, 800, 500
         );
     }
@@ -373,7 +373,7 @@ public class ChartGenerator {
         yAxis.setAutoRange(false);
 
         ChartUtils.saveChartAsPNG(
-                new java.io.File(CHART_OUTPUT_PATH + "发电量对比图.png"),
+                new java.io.File(CHART_OUTPUT_PATH + "power_comparison.png"),
                 chart, 800, 500
         );
     }
@@ -428,7 +428,7 @@ public class ChartGenerator {
         yAxis.setAutoRange(false);
 
         ChartUtils.saveChartAsPNG(
-                new java.io.File(CHART_OUTPUT_PATH + "发电量提升图.png"),
+                new java.io.File(CHART_OUTPUT_PATH + "power_increase.png"),
                 chart, 800, 500
         );
     }

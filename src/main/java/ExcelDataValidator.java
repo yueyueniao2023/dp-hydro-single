@@ -144,7 +144,7 @@ public class ExcelDataValidator {
     // 主方法：校验你的Excel文件
     public static void main(String[] args) {
         // 1. 你的Excel文件路径（替换为实际路径）
-        String filePath = "C:\\1.保研人的大四\\入门案例（两周-截止11月16号）\\水位库容关系&尾水位流量关系&来水过程&实际水位过程.xlsx";
+        String filePath = "data/hydro_basic_data.xlsx";
 
         // 2. 定义校验规则（严格匹配ExcelReader的读取逻辑）
         List<ValidationRule> rules = new ArrayList<>();

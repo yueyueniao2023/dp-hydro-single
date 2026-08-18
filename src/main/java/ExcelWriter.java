@@ -4,7 +4,8 @@ import java.io.FileOutputStream;
 import java.util.List;
 
 public class ExcelWriter {
-    private static final String OUTPUT_PATH = "水电站最优调度结果.xlsx";
+    // 结果输出路径（相对于项目根目录）
+    private static final String OUTPUT_PATH = "results/optimal_dispatch_result.xlsx";
 
     // 只保留一个writeResult方法（合并所有逻辑）
     public void writeResult(List<PeriodResult> resultList) throws Exception {
@@ -47,7 +48,12 @@ public class ExcelWriter {
         }
 
         // 6. 写入文件并关闭资源
-        FileOutputStream outputStream = new FileOutputStream(OUTPUT_PATH);
+        java.io.File outputFile = new java.io.File(OUTPUT_PATH);
+        java.io.File parentDir = outputFile.getParentFile();
+        if (parentDir != null && !parentDir.exists()) {
+            parentDir.mkdirs();
+        }
+        FileOutputStream outputStream = new FileOutputStream(outputFile);
         workbook.write(outputStream);
         workbook.close();
         outputStream.close();

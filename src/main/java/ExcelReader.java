@@ -5,7 +5,8 @@ import java.util.Comparator;
 import java.util.List;
 
 public class ExcelReader {
-    private static final String FILE_PATH = "C:\\1.保研人的大四\\入门案例（两周-截止11月16号）\\水位库容关系&尾水位流量关系&来水过程&实际水位过程.xlsx";
+    // 输入数据文件路径（相对于项目根目录，运行时请在项目根目录下启动程序）
+    private static final String FILE_PATH = "data/hydro_basic_data.xlsx";
     private List<WaterLevelCapacity> levelCapacityList = new ArrayList<>();
     private List<TailWaterFlow> tailWaterFlowList = new ArrayList<>();
     private List<PeriodBasicData> periodBasicDataList = new ArrayList<>();
