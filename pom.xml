@@ -18,6 +18,13 @@
 
     <!-- 新增：POI依赖配置 -->
     <dependencies>
+        <!-- 双库示例的科学计算回归测试 -->
+        <dependency>
+            <groupId>org.junit.jupiter</groupId>
+            <artifactId>junit-jupiter</artifactId>
+            <version>5.11.4</version>
+            <scope>test</scope>
+        </dependency>
         <!-- 支持.xls格式Excel的POI核心依赖 -->
         <dependency>
             <groupId>org.apache.poi</groupId>
@@ -38,5 +45,20 @@
             <version>1.5.3</version>
         </dependency>
     </dependencies>
+
+    <build>
+        <plugins>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-surefire-plugin</artifactId>
+                <version>3.2.5</version>
+            </plugin>
+            <plugin>
+                <groupId>org.codehaus.mojo</groupId>
+                <artifactId>exec-maven-plugin</artifactId>
+                <version>3.5.0</version>
+            </plugin>
+        </plugins>
+    </build>
 
 </project>
