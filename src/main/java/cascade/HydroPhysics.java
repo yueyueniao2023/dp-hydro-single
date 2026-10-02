@@ -29,10 +29,9 @@ public final class HydroPhysics {
 
         // 水量平衡反算的是【总泄流】，并非机组发电流量。
         double release = inflow + (startStorage - endStorage) * STORAGE_TO_M3 / seconds;
-        if (!Double.isFinite(release) || release < r.minRelease() - EPS
-                || release > r.maxRelease() + EPS) return null;
-        // 只修正边界舍入误差，不把实际不可行的泄流截断为可行值。
-        release = Math.max(r.minRelease(), Math.min(r.maxRelease(), release));
+        if (!Double.isFinite(release) || release < r.minRelease()
+                || release > r.maxRelease()) return null;
+        // 不截断反算泄流：否则会改变给定初末库容对应的水量平衡。
 
         // 尾水位取决于总泄流（假定发电尾水与弃水汇入同一河道）。
         double tailwater = r.releaseTailwater().at(release);

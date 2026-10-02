@@ -1,193 +1,102 @@
-# dp-hydro-single
+# 水电调度 Java 教学：单库 → 双库 → 干支流梯级
 
-基于动态规划（Dynamic Programming）的水电站单库调度优化程序：求解单个水电站在一年内的最优调度策略，以最大化年总发电量，并输出逐旬调度序列。研究生阶段学习水资源优化调度的入门实践项目。
+一个 Maven 项目中同时保留三个可独立运行的案例，学习“水量平衡 → 发电计算 → 联合状态 → 动态规划 → 回溯”。无需切换 Git 分支，也没有多模块结构。目标均为**整个调度期所有参与电站的总发电量最大**，不包含电价、风光储或电网约束。
 
-## 新增：上下游串联双库教学示例
+双库、四库及新增低流量补点为**教学合成数据，非真实电站资料**。单库原始 Excel 原样保留，原数据来源未在本次核实，不应当作经校准的工程资料。
 
-新增的 `cascade` 包使用二维水位状态动态规划，联合优化两库总发电量。下游来水等于**上游总泄水（发电流量 + 弃水）+ 区间来水**，因此两库的决策需要共同考虑。
+## 从三个案例开始
 
-在项目根目录运行（JDK 17+、Maven 3.x）：
+| 案例与水系 | 阶段和状态 | 优化目标与学习重点 | 入口 / 核心代码 | 数据 / 中文教程 / 结果 |
+| --- | --- | --- | --- | --- |
+| 单库 → 出口 | 36旬、365天；基本状态为水位；原有月内极差约束需扩展为(水位,本月最低旬末水位,本月最高旬末水位)，月末可合并 | 单站总电量；理解一条水量平衡、历史约束与状态充分性 | [Main](src/main/java/Main.java) / [DynamicProgramming](src/main/java/DynamicProgramming.java) | [原Excel](data/hydro_basic_data.xlsx)、[补点说明](data/single/README.md) / [单库教程](docs/single-tutorial.md) / [CSV](results/single/dispatch.csv) |
+| 上库 → 下库 → 出口 | 36旬、365天；(上库水位,下库水位)，11×11=121状态 | 两站总电量；下库来水依赖上库决策，弃水也进入下库 | [CascadeMain](src/main/java/cascade/CascadeMain.java) / [CascadeDp](src/main/java/cascade/CascadeDp.java) | [数据](data/cascade/) / [双库教程](docs/cascade-tutorial.md) / [CSV](results/cascade/dispatch.csv) |
+| 干流 A → B → C，支流 D → B | 6个日时段；(A,B,C,D水位)，3⁴=81状态 | 四站总电量；直接上游集合、汇流、拓扑排序、联合转移 | [NetworkMain](src/main/java/network/NetworkMain.java) / [NetworkDp](src/main/java/network/NetworkDp.java) | [数据](data/network/) / [四库教程](docs/network-tutorial.md) / [CSV](results/network/dispatch.csv) |
+
+四库连接关系：
+
+```text
+干流：A ───→ B ───→ C ───→ 流域出口
+             ↑
+支流：D ─────┘
+```
+
+B入库 = A总出库 + D总出库 + B区间来水；C入库 = B总出库 + C区间来水。总出库包含发电流量和弃水。C处不再重复加A和D。
+
+**推荐阅读顺序：单库 → 双库 → 四库。** 第一次看单库，可先理解忽略月内极差时的 `F[t][水位]`，再阅读扩展状态；双库、四库只设本期约束，因此联合水位本身就足够表示状态。
+
+## 直接运行
+
+安装 JDK 17+、Maven 3.x，在仓库根目录（含 `pom.xml`）运行。首次构建需下载依赖。PowerShell 和 Bash 都可复制以下命令：
+
+```bash
+mvn compile exec:java "-Dexec.mainClass=Main"
+```
 
 ```bash
 mvn compile exec:java "-Dexec.mainClass=cascade.CascadeMain"
+```
+
+```bash
+mvn compile exec:java "-Dexec.mainClass=network.NetworkMain"
+```
+
+分别写入 `results/single/`、`results/cascade/`、`results/network/`；可任意顺序运行，不覆盖其他案例。单库同时生成辅助Excel，版本库保留便于GitHub查看的CSV。
+
+```bash
 mvn test
 ```
 
-- [双库中文教程](docs/cascade-tutorial.md)：水量平衡、手算例子、四重状态转移、前向递推与逆向回溯、单位换算、模型假设和学习实验。
-- [双库源码](src/main/java/cascade/)：与原单库入口 `Main` 分开，独立入口为 `cascade.CascadeMain`。
-- [合成示例数据](data/cascade/)：6 个 UTF-8 文本文件，全部为人工编写，无实站来源；36 旬采用非闰年实际天数，全年 365 天。
-- 结果默认输出到 `results/cascade/dispatch.csv`，包含两库逐期水位、入流、总泄流、发电流量、弃水、出力、发电量和水量平衡残差。
+所有源码 UTF-8。IDEA 中打开根目录 `pom.xml`，选 JDK 17、加载 Maven，然后运行相应 Main 类；工作目录设为项目根目录。不要把 Git 的 `main` 分支和 Java 的 `Main` 入口混淆。
 
-可用 `"-Dexec.args=输入目录 输出CSV路径"` 指定路径，或用 `"-Dexec.args=--help"` 查看帮助。双库示例使用严格初末水位、每期水位上限和相邻期水位变幅约束；模型与原单库实现的区别详见教程。
-
-以下章节保留原单库程序的模型、数据、结果和已知问题。
-
-## 问题描述与方法
-
-- **研究对象**：单座水电站（水库），已知来水过程、水位库容关系、尾水位流量关系（下游河道行洪能力曲线，由曼宁公式计算）。
-- **目标函数**：全年（12 个月、36 旬）总发电量最大。
-- **求解方法**：动态规划（逆序递推）。以旬为阶段、库水位为状态变量，将库水位从死水位（790 m）到正常蓄水位（850 m）按固定步长（默认 0.5 m，共 121 个状态）离散，逐旬递推并利用 `prev` 数组回溯最优调度轨迹。
-
-## 数学模型
-
-### 状态与阶段
-
-- 阶段 `k = 1, 2, …, 36`（全年 36 旬）；
-- 状态 `Z_k` 为第 `k` 旬末库水位，取离散值 `790 + i × LEVEL_STEP`（`i = 0, …, STATE_COUNT-1`）。
-
-### 水量平衡（状态转移）
-
-旬出库流量由水量平衡反推，库容经水位库容曲线线性插值求得：
-
-```
-Q_理论 = W_来水 − (V_末 − V_初) × 1e8 / (10 × 24 × 3600)
-```
-
-其中库容单位为亿 m³，流量单位为 m³/s，`10×24×3600` 为一旬的秒数。
-
-### 发电量计算（阶段效益）
-
-```
-H_净 = (Z_初 + Z_末) / 2 − Z_尾        # 平均净水头（m）
-Z_尾 = f(Q)                            # 按出流插值查尾水位流量关系
-N    = A × Q × H_净                    # 平均出力（kW），A = 8.5 为综合出力系数
-E    = N × 240 h × 1e-4                # 旬发电量（万kWh）
-```
-
-**装机容量约束与弃水**：电站最大出力 3600 MW（360 万 kW），允许的最大发电流量 `Q_max = 3600000 / (A × H_净)`，且不超过出库流量上限。理论流量超出部分记为弃水，发电流量截断至 `Q_max`，旬发电量上限 86400 万 kWh（满发一旬）。
-
-### 递推方程
-
-```
-dp[k][j] = max_i { dp[k−1][i] + E(i → j) }
-```
-
-不可达状态以 `-Double.MAX_VALUE` 标记；`prev[k][j]` 记录最优前驱状态，求解后自第 36 旬回溯得到全年调度轨迹。
-
-### 约束条件
-
-| 约束 | 取值 | 说明 |
-| --- | --- | --- |
-| 库水位范围 | 790 ~ 850 m | 死水位 ~ 正常蓄水位 |
-| 出库流量 | 188 ~ 5000 m³/s | 下限为最小发电流量，上限为下游河道行洪能力 |
-| 汛限水位 | 7、8 月 ≤ 842 m | 主汛期防洪要求（见「已知问题」） |
-| 月水位变幅 | ≤ 30 m | 月内各旬末水位极差限制，回溯 `prev` 链逐月校验 |
-
-### 边界条件
-
-- 年初水位 830 m（固定）；
-- 年末水位目标 840 m，回溯时在 ±1 m 容差内选取发电量最大的可行状态作为终点。
-
-## 项目结构
-
-```text
-├── data/                                   # 输入数据
-│   └── hydro_basic_data.xlsx               # 水位库容关系、尾水位流量关系、来水过程、实际水位过程
-├── results/                                # 输出结果
-│   ├── optimal_dispatch_result.xlsx        # 默认步长 0.5 m 的最优调度结果
-│   ├── optimal_dispatch_result_step_0.25.xlsx
-│   └── optimal_dispatch_result_step_1.0.xlsx
-├── figures/                                # 最优调度 vs 实际调度对比图
-│   ├── water_level_comparison.png          # 水位过程对比
-│   ├── outflow_comparison.png              # 出流过程对比
-│   ├── power_comparison.png                # 发电量对比
-│   └── power_increase.png                  # 发电量提升
-├── src/main/java/                          # 源码（当前均在默认包，见「已知问题」）
-│   ├── Main.java                           # 主入口：读数据 → DP 求解 → 导出 Excel
-│   ├── DynamicProgramming.java             # 动态规划核心（递推 + 回溯）
-│   ├── ConstraintChecker.java              # 约束校验
-│   ├── PowerCalculator.java                # 发电量计算（含装机限制与弃水）
-│   ├── ExcelReader.java                    # Excel 数据读取与线性插值
-│   ├── ExcelWriter.java                    # 调度结果导出
-│   ├── ChartGenerator.java                 # 对比图生成（独立入口）
-│   ├── ExcelDataValidator.java             # 输入数据格式校验（独立入口）
-│   └── PeriodResult.java                   # 旬结果及基础数据实体类
-├── pom.xml
-├── LICENSE                                 # MIT
-└── README.md
-```
-
-## 输入数据格式
-
-输入文件为 `data/hydro_basic_data.xlsx`，共 4 个工作表：
-
-| Sheet | 内容 | 读取规则 |
-| --- | --- | --- |
-| 1 来水过程 | 36 旬天然来水流量（m³/s） | C2:C37 |
-| 2 水位库容 | 整数水位（A 列）× 小数位（第 1 行 0~0.9）→ 库容（亿 m³） | 第 5 行起 |
-| 3 尾水位流量 | 整数尾水位（A 列）× 小数位 → 对应流量（m³/s） | 第 5 行起，流量 > 0 有效 |
-| 4 实际水位过程 | 实际运行的旬末水位（m），用于对比 | D2:D37 |
-
-运行前可用 `ExcelDataValidator` 校验数据格式是否与读取逻辑匹配。
-
-## 快速开始
-
-### 环境要求
-
-- JDK 17+（`pom.xml` 中 source/target 为 17）
-- Maven 3.x
-- 依赖：Apache POI 4.1.0（Excel 读写）、JFreeChart 1.5.3（绘图），由 Maven 自动拉取
-
-### 运行
-
-程序内所有路径均为**项目根目录下的相对路径**，请在项目根目录下运行：
+双库、四库支持指定输入目录与输出CSV，例如：
 
 ```bash
-git clone https://github.com/yueyueniao2023/dp-hydro-single.git
-cd dp-hydro-single
-
-# 1. DP 求解并导出最优调度结果（results/optimal_dispatch_result.xlsx）
-mvn compile exec:java -Dexec.mainClass=Main
-
-# 2. 生成最优调度与实际调度的对比图（figures/）
-mvn exec:java -Dexec.mainClass=ChartGenerator
-
-# 3. （可选）校验输入 Excel 的数据格式
-mvn exec:java -Dexec.mainClass=ExcelDataValidator
+mvn compile exec:java "-Dexec.mainClass=network.NetworkMain" "-Dexec.args=data/network results/network/dispatch.csv"
 ```
 
-运行 `Main` 后控制台会打印年总发电量（万 kWh）。
+Windows 控制台乱码时可在 PowerShell 当前窗口设置 `$env:MAVEN_OPTS='-Dfile.encoding=UTF-8'`；CSV始终为UTF-8。
 
-> Windows 控制台若出现中文乱码，可先执行 `chcp 65001` 切换 UTF-8 代码页；不影响输出文件内容。
+## 本次验证与代表性结果
 
-### 修改水位离散步长
+2026-10-02重新运行，三个入口均成功退出。完整证据和复现说明见[验证记录](docs/validation.md)。
 
-编辑 `DynamicProgramming.java` 中的 `LEVEL_STEP`（如 0.25 / 0.5 / 1.0），重新编译运行即可。状态数随步长减半而翻倍，计算耗时相应增加。
+| 案例 | 总发电量（MWh） | 严格初末水位（m） | 最大逐库水量残差（m³） |
+| --- | ---: | --- | ---: |
+| 单库 | 17,803,905.702958 | 830 → 840 | 2.384×10⁻⁷ |
+| 双库 | 1,182,374.199（取3位小数） | (210,105) → (210,105) | 2.049×10⁻⁸ |
+| 四库 | 8,697.303120 | (201,141,91,181) → 同一状态 | 9.313×10⁻¹⁰ |
 
-## 计算结果
+三个案例的库容、来水、装机、时长不同，**总电量不能用于比较算法优劣**。精确DP表示对所选离散模型求最优，不是连续水位问题的精确最优。
 
-默认步长 0.5 m 下，年总发电量 **1,726,495.61 万 kWh（约 172.65 亿 kWh）**。最优调度与实际调度的对比如下：
+测试包含物理边界、逐期水量平衡、全流域守恒、含弃水的汇流关系、严格初末状态、CSV汇总、无解提示，以及独立完整路径穷举。单库修复原因见[单库教程](docs/single-tutorial.md#本次修复了什么)。
 
-| 水位过程对比 | 出流过程对比 |
-| --- | --- |
-| ![水位过程对比图](figures/water_level_comparison.png) | ![出流过程对比图](figures/outflow_comparison.png) |
+## 代码组织
 
-| 发电量对比 | 发电量提升 |
-| --- | --- |
-| ![发电量对比图](figures/power_comparison.png) | ![发电量提升图](figures/power_increase.png) |
+```text
+src/main/java/
+  Main.java, DynamicProgramming.java     单库入口与核心，保留原入口
+  ExcelReader.java, SingleCsvWriter.java 原Excel读取与单库CSV
+  cascade/                              双库入口、DP、数据和CSV
+    HydroPhysics.java                   三例共用的单库单期物理计算
+    Reservoir.java, LinearCurve.java     水库参数与插值
+    StationOperation.java               单库单期结果及单位
+  network/                              四库入口、DP、拓扑、数据和CSV
+data/
+  hydro_basic_data.xlsx                 原单库输入，保持兼容
+  single/                               单库说明及显式合成补点
+  cascade/                              双库合成数据
+  network/                              四库合成数据及连接表
+docs/                                   三篇中文教程及验证记录
+results/single/, cascade/, network/      互不覆盖的代表性CSV
+src/test/java/                          单库、双库、四库及共用物理测试
+```
 
-## 离散步长的收敛性
+为减少迁移，公共物理类仍位于原 `cascade` 包，单库与四库直接导入；核心DP分别写在三个清楚可见的文件里，不包装成复杂优化框架。
 
-使用当前代码在三种步长下分别求解，年总发电量如下（均为含弃水逻辑的同口径结果）：
+## 简化边界和后续学习
 
-| 步长（m） | 状态数 | 年发电量（万 kWh） | 较粗步长增量（万 kWh） |
-| --- | --- | --- | --- |
-| 1.0 | 61 | 1,725,780.79 | — |
-| 0.5 | 121 | 1,726,495.61 | +714.82 |
-| 0.25 | 241 | 1,727,016.17 | +520.56 |
+采用确定性平均流量、分段线性库容曲线、固定效率/综合系数、平均水头；无传播时滞、河道损失或河道调蓄，无机组启停与电网功率平衡。四库尾水位固定，不表示上下库之间存在真实回水耦合。
 
-步长越细，可行解空间越大，年发电量单调提升；而每细化一级带来的增量递减（714.82 → 520.56 万 kWh），说明结果正随离散加密趋于收敛。综合精度与计算耗时，0.5 m 是当前较均衡的选择。
+根目录旧 `results/optimal_dispatch_result*.xlsx` 和 `figures/` 保留为历史成果，**不是修复后代码的结果**，旧年发电量和步长对比不再作为当前结论。可选旧绘图入口改为读取 `results/single/`，输出 `results/single/figures/`；若原参考水位不满足新口径的水量/流量约束，会明确拒绝，不再截断流量。
 
-## 已知问题与后续改进
-
-- **包结构与工程配置**：所有类位于默认包（无 `package` 声明）；`pom.xml` 的 groupId/artifactId 仍为脚手架默认值，缺少 exec 插件显式声明。
-- **汛期约束与题设不一致**：设计意图为 5–7 月汛期执行汛限水位，当前代码实现为 7、8 月（见 `ConstraintChecker.java`），待确认修正。
-- **弃水电量取值偏乐观**：弃水旬的发电量直接取满发上限 86400 万 kWh，而非按截断后流量精确计算。
-- **末水位边界放松为 ±1 m**：为保证可行解存在；后续可尝试严格匹配并检查可行性。
-- **资源管理**：Excel 读写未使用 try-with-resources，异常路径存在资源泄漏风险。
-- **代码清理**：存在被整体注释的废弃类（`FinalDemo.java`）、调试输出与疑问标记注释。
-- **缺少单元测试**：`src/test` 目前为空，计划补充插值函数与水量平衡换算的测试。
-
-## License
-
-[MIT](LICENSE)
+先做教程末尾的小实验，再考虑风、光、储、负荷和电网约束。许可证：[MIT](LICENSE)。

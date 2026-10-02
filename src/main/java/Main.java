@@ -1,33 +1,20 @@
-import java.util.List;
+import java.util.*;
+import java.nio.file.*;
 
+/** 原单库入口：Excel输入 → 精确离散DP → 独立目录中的CSV及Excel。 */
 public class Main {
-    public static void main(String[] args) {
-        try {
-            // 1. 读取Excel数据
-            ExcelReader excelReader = new ExcelReader();
-            excelReader.init();
-            System.out.println("数据读取完成");
-
-            // 2. 执行动态规划求解
-            DynamicProgramming dp = new DynamicProgramming(excelReader);            //传入excelReader，通过DynamicProgramming（）方法进行初始化
-            List<PeriodResult> bestResult = dp.solve();
-            System.out.println("DP求解完成");
-
-            // 3. 输出结果到Excel
-            ExcelWriter excelWriter = new ExcelWriter();
-            excelWriter.writeResult(bestResult);
-
-            // 4. 打印总发电量
-            double totalPower = 0;
-            for (PeriodResult result : bestResult) {
-                totalPower += result.getPowerGeneration();
-            }
-            System.out.println("年总发电量：" + String.format("%.2f", totalPower) + "万kWh");
-
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
-
+    public static void main(String[] args) throws Exception {
+        if (args.length > 0) throw new IllegalArgumentException("单库Main无需参数；请在仓库根目录运行");
+        ExcelReader reader = new ExcelReader();
+        reader.init();
+        DynamicProgramming dp = new DynamicProgramming(reader);
+        List<PeriodResult> result = dp.solve();
+        SingleCsvWriter.write(Path.of("results/single/dispatch.csv"), result);
+        new ExcelWriter().writeResult(result);
+        System.out.printf(Locale.ROOT, "单库：%d期，%.0f天；总发电量 %.9f MWh（%.6f 万kWh）%n",
+                result.size(), result.stream().mapToDouble(PeriodResult::getDays).sum(),
+                dp.optimumMwh(), dp.optimumMwh() / 10);
+        System.out.printf(Locale.ROOT, "严格初末水位：%.3f → %.3f m%n",
+                result.get(0).getStartLevel(), result.get(result.size() - 1).getEndLevel());
     }
 }
-

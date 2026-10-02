@@ -35,21 +35,35 @@ class PeriodBasicData {
     private int periodIndex;       // 旬索引（1-36）
     private double naturalInFlow;  // 天然来水流量（m³/s）
     private int month;             // 所属月份（1-12）
+    private double days;
 
     public PeriodBasicData(int periodIndex, double naturalInFlow, int month) {
+        this(periodIndex, naturalInFlow, month, (periodIndex - 1) % 3 == 2
+                ? java.time.YearMonth.of(2025, month).lengthOfMonth() - 20 : 10);
+    }
+
+    public PeriodBasicData(int periodIndex, double naturalInFlow, int month, double days) {
         this.periodIndex = periodIndex;
         this.naturalInFlow = naturalInFlow;
         this.month = month;
+        this.days = days;
     }
 
     // getter/setter
     public int getPeriodIndex() { return periodIndex; }
     public double getNaturalInFlow() { return naturalInFlow; }
     public int getMonth() { return month; }
+    public double getDays() { return days; }
 }
 
 // 逐旬调度结果（输出）
 public class PeriodResult {
+    private double days;
+    private double inflow;
+    public double getDays() { return days; }
+    public void setDays(double days) { this.days = days; }
+    public double getInflow() { return inflow; }
+    public void setInflow(double inflow) { this.inflow = inflow; }
     private int periodIndex;       // 旬索引
     private double powerFlow;      // 发电流量（m³/s）
     private double startLevel;     // 旬初水位（m）

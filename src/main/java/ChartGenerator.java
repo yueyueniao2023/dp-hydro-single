@@ -16,8 +16,8 @@ import java.util.List;
 
 public class ChartGenerator {
     private static final String ORIGIN_EXCEL_PATH = "data/hydro_basic_data.xlsx";
-    private static final String OPTIMAL_EXCEL_PATH = "results/optimal_dispatch_result.xlsx";
-    private static final String CHART_OUTPUT_PATH = "figures/";
+    private static final String OPTIMAL_EXCEL_PATH = "results/single/optimal_dispatch_result.xlsx";
+    private static final String CHART_OUTPUT_PATH = "results/single/figures/";
 
     private ExcelReader excelReader;
     private PowerCalculator powerCalculator;
@@ -89,8 +89,11 @@ public class ChartGenerator {
             // 实际数据计算与赋值
             ActualPeriodData actual = actualDataList.get(i);
             periodData.actualLevel = actual.endLevel;
-            periodData.actualFlow = actual.calcActualFlow(); // 按水量平衡反推实际出流
-            periodData.actualPower = calcActualPower(actual, periodData.actualFlow); // 计算实际发电量
+            double release = actual.calcActualFlow();
+            double[] operation = powerCalculator.calculatePowerWithAbandon(actual.startLevel,
+                    actual.endLevel, release, excelReader.getPeriodBasicDataList().get(i).getDays());
+            periodData.actualFlow = operation[0];
+            periodData.actualPower = operation[2];
             periodData.powerIncrease = periodData.optimalPower - periodData.actualPower; // 提升量
 
             dataList.add(periodData);
@@ -197,18 +200,6 @@ public class ChartGenerator {
         return list;
     }
 
-    // 计算实际旬发电量（复用PowerCalculator逻辑）
-// 计算实际旬发电量（复用PowerCalculator逻辑，新增发电量上限约束）
-    private double calcActualPower(ActualPeriodData actualData, double actualFlow) {
-        double avgReservoirLevel = (actualData.startLevel + actualData.endLevel) / 2;
-        double avgTailLevel = excelReader.getTailLevelByFlow(actualFlow);
-        double avgHead = avgReservoirLevel - avgTailLevel;
-        double avgPower = PowerCalculator.A * actualFlow * avgHead;
-        // 计算原始发电量（未截断）
-        double actualPower = avgPower * PowerCalculator.TEN_DAY_HOURS * PowerCalculator.UNIT_CONVERT;
-        // 新增：应用发电量上限约束（不超过86400万kWh）
-        return Math.min(actualPower, PowerCalculator.MAX_PERIOD_POWER);
-    }
 
     // ========== 1. 水位过程对比图（解决中文乱码+完善要素） ==========
     private void drawWaterLevelChart(List<PeriodData> dataList) throws Exception {
@@ -453,21 +444,17 @@ public class ChartGenerator {
         public double calcActualFlow() {
             double startCapacity = excelReader.getCapacityByLevel(startLevel);
             double endCapacity = excelReader.getCapacityByLevel(endLevel);
-            // 水量平衡公式：Q实际 = 来水 - (旬末库容 - 旬初库容)*1e8/(10*24*3600)
-            double flow = naturalInFlow - (endCapacity - startCapacity) * 1e8 / (10 * 24 * 3600);
-            // 新增：应用流量约束（最小188，最大5000m³/s）
-            flow = Math.max(ConstraintChecker.MIN_FLOW, Math.min(flow, ConstraintChecker.MAX_FLOW));
+            double days = excelReader.getPeriodBasicDataList().get(periodIndex - 1).getDays();
+            double flow = naturalInFlow - (endCapacity - startCapacity) * 1e8 / (days * 86400);
+            if (flow < ConstraintChecker.MIN_FLOW || flow > ConstraintChecker.MAX_FLOW)
+                throw new IllegalArgumentException("参考水位过程第" + periodIndex + "期不满足下泄边界，不能截断流量掩盖水量不平衡");
             return flow;
         }
     }
 
     // 测试方法：直接运行生成图表
-    public static void main(String[] args) {
-        try {
-            ChartGenerator generator = new ChartGenerator();
-            generator.generateAllCharts();
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
+    public static void main(String[] args) throws Exception {
+        ChartGenerator generator = new ChartGenerator();
+        generator.generateAllCharts();
     }
 }

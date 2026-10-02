@@ -35,3 +35,7 @@ Thumbs.db
 
 # 给作者的readme.txt文件
 readme.txt
+
+# 新运行的辅助Excel/图片无需逐次提交，代表性CSV保留在版本库。
+results/single/*.xlsx
+results/single/figures/

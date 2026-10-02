@@ -5,7 +5,7 @@ import java.util.List;
 
 public class ExcelWriter {
     // 结果输出路径（相对于项目根目录）
-    private static final String OUTPUT_PATH = "results/optimal_dispatch_result.xlsx";
+    private static final String OUTPUT_PATH = "results/single/optimal_dispatch_result.xlsx";
 
     // 只保留一个writeResult方法（合并所有逻辑）
     public void writeResult(List<PeriodResult> resultList) throws Exception {

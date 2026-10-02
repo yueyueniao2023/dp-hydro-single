@@ -1,0 +1,7 @@
+# 教学合成数据，非真实电站资料。库容 V=Vmin+slope*(Z-Zmin)，单位亿m3。
+# mainstem/tributary只作水系说明，实际来水根据connections.csv计算。
+id,course,min_level_m,max_level_m,step_m,initial_m,terminal_m,min_storage_1e8m3,storage_slope_1e8m3_per_m,min_release_m3s,max_release_m3s,max_turbine_m3s,installed_mw,efficiency,tailwater_m
+A,mainstem,200,202,1,201,201,0.10,0.00864,5,200,60,25,0.90,150
+B,mainstem,140,142,1,141,141,0.08,0.00864,8,350,90,32,0.90,100
+C,mainstem,90,92,1,91,91,0.06,0.00864,10,400,100,25,0.90,60
+D,tributary,180,182,1,181,181,0.05,0.00432,2,120,30,10,0.90,150
