@@ -5,6 +5,13 @@ import org.junit.jupiter.api.Test;
 import static org.junit.jupiter.api.Assertions.*;
 
 class HydroPhysicsTest {
+    @Test
+    void neverClampsEvenSmallNegativeOrOutOfBoundsRelease() {
+        Reservoir normal = reservoir(0, 200, 100, 1000, 0, 2, 90);
+        double tooLittle = 1_000_000.0 / 86400 - 1e-10;
+        assertNull(HydroPhysics.evaluate(normal, 100, 101, tooLittle, 1, 102));
+        assertNull(HydroPhysics.evaluate(normal, 101, 101, 200 + 1e-10, 1, 102));
+    }
     private static Reservoir reservoir(double minRelease, double maxRelease,
                                        double turbineCapacity, double installedPower,
                                        double headLoss, double maxChange, double tailwater) {
